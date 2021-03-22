@@ -16,7 +16,7 @@ Instructions for getting the app running locally
    - On line 5, change "Your.Name@epa.gov" to your email address and "Your_AQS_API_key" to your AQS API key
      (you should receive your AQS API key by email when you sign up)
 6) In the R console window, enter the following commands:
-   - library(shiny)
+   - source("C:/Your/App/Directory/global.r") where /Your/App/Directory/ is the path to the app folder.
    - runApp()
 7) The app should open in a new internet browser window
    - Be sure to read the instructions on the opening screen before you start using the app!
