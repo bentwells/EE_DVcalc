@@ -825,6 +825,7 @@ shinyServer(function(input,output,session) {
       data <- site.mda8(); dv <- ozone.dv(); req.obs <- ifelse(level == 70,13,18);
       data$date <- as.character(data$date); data$dmax <- round(data$dmax,3);
       valid <- data$obs >= req.obs | floor(data$dmax) > level; data$dmax[!valid] <- NA;
+      if (any(data$conc == -99,na.rm=TRUE)) { data$conc[which(data$conc == -99)] <- NA }
       daily <- split(data,substr(data$date,1,4))
       for (i in 1:3) {
         cb.daily <- CellBlock(wb.sheets[[(i+1)]],startRow=2,startColumn=1,
@@ -854,7 +855,7 @@ shinyServer(function(input,output,session) {
       data <- site.data(); ann.dv <- pm25.annual.dv(); daily.dv <- pm25.daily.dv();
       data$date <- as.character(data$date);
       data$quarter <- (as.numeric(substr(data$date,6,7))-1) %/% 3 + 1
-      if (any(data$conc == -99)) { data$conc[which(data$conc == -99)] <- NA }
+      if (any(data$conc == -99,na.rm=TRUE)) { data$conc[which(data$conc == -99)] <- NA }
       daily <- split(data[,c("date","quarter","conc","flag")],substr(data$date,1,4))
       center <- CellStyle(wb,alignment=Alignment(horizontal="ALIGN_CENTER"))
       for (i in 1:3) {
