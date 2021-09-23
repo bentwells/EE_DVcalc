@@ -2,7 +2,7 @@
 Exceptional Events Design Value Calculator
 
 R shiny application developed by Ben Wells, US EPA/OAQPS
-Latest Update: March 19, 2021
+Latest Update: September 23, 2021
 --------------------------------------------------------
 
 Instructions for getting the app running locally

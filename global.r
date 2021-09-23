@@ -1,11 +1,12 @@
 ## Set options, load required packages
-setwd("C:/Your/Local/Directory/")
+setwd("C:/Your/App/Directory/")
 require(RAQSAPI,quietly=TRUE,warn.conflicts=FALSE)
 require(shiny,quietly=TRUE,warn.conflicts=FALSE)
 require(xlsx,quietly=TRUE,warn.conflicts=FALSE)
-aqs_credentials(username="Your.Name@epa.gov",key="Your_AQS_API_key")
+aqs_credentials(username="Your.Name@epa.gov",key="Your_AQS_API_Key")
 options(stringsAsFactors=FALSE)
-curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4))-1
+curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
+  ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 4,1,2)
 
 ## Custom functions called within the main function
 count <- function(x) { return(sum(!is.na(x))) }
@@ -38,5 +39,5 @@ avg24 <- function(x,sub,lvl) {
 ## Load monitor metadata, method codes, o3 seasons
 load("data/monitors.Rdata")
 load("data/o3methods.Rdata")
-load("data/O3seasons.Rdata")
+load("data/o3seasons.Rdata")
 load("data/pmschedules.Rdata")
