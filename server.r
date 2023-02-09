@@ -188,7 +188,8 @@ shinyServer(function(input,output,session) {
       npocs <- length(unique(temp$poc)); ndays <- length(dates);
       all.hrs <- data.frame(poc=rep(unique(temp$poc),each=24*ndays),
         date=rep(dates,each=24,times=npocs),hour=rep(c(0:23),times=ndays*npocs))
-      data <- merge(all.hrs,temp,all.x=TRUE,all.y=FALSE)
+      data <- merge(all.hrs,temp,by=c("poc","date","hour"),all.x=TRUE,all.y=FALSE)
+      data <- data[order(data$poc,data$date,data$hour),]
       ## Remove missing days assumed less than the standard
       bg <- which(data$flag == "BG" & data$concur == "Y")
       if (length(bg) > 0) { data$conc[bg] <- -99 }
