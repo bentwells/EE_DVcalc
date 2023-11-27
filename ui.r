@@ -23,7 +23,7 @@ shinyUI(fluidPage(title="EE DV Tool",
     
     ## Drop down menu inputs
     selectInput(inputId="poll.select",label="Select a Pollutant:",
-      choices=c("Ozone","PM2.5"),selected="Ozone"),
+      choices=c("Ozone","PM2.5"),selected="PM2.5"),
     uiOutput(outputId="ui.naaqs"),
     selectInput(inputId="region.select",label="Select an EPA Region:",
       choices=c("National",paste("EPA Region",c(1:10))),selected="National"),

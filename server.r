@@ -33,9 +33,9 @@ shinyServer(function(input,output,session) {
       naaqs.selected <- "2015 8-hour NAAQS (70 ppb)"
     }
     if (input$poll.select == "PM2.5") {
-      naaqs.choices <- c("2012 Annual NAAQS (12 ug/m^3)","2006 24-hour NAAQS (35 ug/m^3)",
-        "1997 Annual NAAQS (15 ug/m^3)")
-      naaqs.selected <- "2006 24-hour NAAQS (35 ug/m^3)"
+      naaqs.choices <- c("2023 Annual NAAQS (9 ug/m^3)","2012 Annual NAAQS (12 ug/m^3)",
+        "2006 24-hour NAAQS (35 ug/m^3)","1997 Annual NAAQS (15 ug/m^3)")
+      naaqs.selected <- "2023 Annual NAAQS (9 ug/m^3)"
     }
     selectInput(inputId="naaqs.select",label="Select a NAAQS:",
       choices=naaqs.choices,selected=naaqs.selected)
@@ -50,7 +50,8 @@ shinyServer(function(input,output,session) {
       level <- ifelse(naaqs == "2015",70,ifelse(naaqs == "2008",75,84))
     }
     if (input$poll.select == "PM2.5") {
-      level <- ifelse(naaqs == "2012",12,ifelse(naaqs == "2006",35,15))
+      level <- ifelse(naaqs == "2023",9,ifelse(naaqs == "2012",12,
+        ifelse(naaqs == "2006",35,15)))
     }
     return(level)
   })
@@ -121,7 +122,7 @@ shinyServer(function(input,output,session) {
     updateSelectInput(session,inputId="year.select",selected=paste(curr.year-2,curr.year,sep="-"))
     updateSelectInput(session,inputId="state.select",selected=" ")
     updateSelectInput(session,inputId="region.select",selected="National")
-    updateSelectInput(session,inputId="poll.select",selected="Ozone")
+    updateSelectInput(session,inputId="poll.select",selected="PM2.5")
     vals$counter <- 0
     vals$last.clicked <- NULL
     vals$reset <- TRUE
@@ -184,6 +185,17 @@ shinyServer(function(input,output,session) {
           ifelse(is.na(x)," ",ifelse(substr(x,1,1) == "V"," ",
           ifelse(substr(x,2,2) == " ",substr(x,1,1),substr(x,1,2))))),
         concur=" ")
+      ## Add existing regional concurrence flags, if any
+      concur <- subset(o3.concurrences,substr(id,1,9) == aqs.site.id() & 
+        as.integer(substr(dt,1,4)) %in% dv.years())
+      if (nrow(concur) > 0) {
+        concur$poc <- substr(concur$id,10,10)
+        concur$date <- as.Date(substr(concur$dt,1,10))
+        concur$hour <- as.integer(substr(concur$dt,12,13))
+        conc.ind <- match(paste(concur$poc,concur$date,concur$hour),
+          paste(temp$poc,temp$date,temp$hour))
+        temp$concur[conc.ind] <- "Y"
+      }
       ## Create dataset with a full hourly record
       npocs <- length(unique(temp$poc)); ndays <- length(dates);
       all.hrs <- data.frame(poc=rep(unique(temp$poc),each=24*ndays),
@@ -270,25 +282,52 @@ shinyServer(function(input,output,session) {
           ifelse(is.na(x)," ",ifelse(substr(x,1,1) == "V"," ",
           ifelse(substr(x,2,2) == " ",substr(x,1,1),substr(x,1,2))))),
         concur=" ")
-      ## Calculate 24-hour averages for FEM data (if any)
-      if (any(temp$duration == 1)) {
-        t <- subset(temp,duration == 1)
-        npocs <- length(unique(t$poc)); ndays <- length(dates);
-        all.hrs <- data.frame(poc=rep(unique(t$poc),each=24*ndays),
+      ## Get FRM data, add existing regional concurrence flags, if any
+      frm <- subset(temp,duration == 7)
+      concur <- subset(pm.concurrences.daily,substr(id,1,9) == aqs.site.id() & 
+        as.integer(substr(dt,1,4)) %in% dv.years())
+      if (nrow(concur) > 0) {
+        concur$poc <- substr(concur$id,10,10)
+        concur$date <- as.Date(substr(concur$dt,1,10))
+        conc.ind <- match(paste(concur$poc,concur$date),paste(frm$poc,frm$date))
+        frm$concur[conc.ind] <- "Y"
+      }
+      ## Get FEM data, calculate 24-hour averages
+      fem <- subset(temp,duration == 1)
+      if (nrow(fem) > 0) {
+        ## Add existing regional concurrence flags, if any
+        concur <- subset(pm.concurrences.hourly,substr(id,1,9) == aqs.site.id() & 
+          as.integer(substr(dt,1,4)) %in% dv.years())
+        if (nrow(concur) > 0) {
+          concur$poc <- substr(concur$id,10,10)
+          concur$date <- as.Date(substr(concur$dt,1,10))
+          concur$hour <- as.integer(substr(concur$dt,12,13))
+          conc.ind <- match(paste(concur$poc,concur$date,concur$hour),
+            paste(fem$poc,fem$date,fem$hour))
+          fem$concur[conc.ind] <- "Y"
+        }
+        npocs <- length(unique(fem$poc)); ndays <- length(dates);
+        all.hrs <- data.frame(poc=rep(unique(fem$poc),each=24*ndays),
           date=rep(dates,each=24,times=npocs),hour=rep(c(0:23),times=ndays*npocs))
-        vals <- merge(all.hrs,t,all.x=TRUE,all.y=FALSE)
-        add <- data.frame(poc=rep(unique(vals$poc),each=ndays),
+        vals <- merge(all.hrs,fem,all.x=TRUE,all.y=FALSE)
+        fem <- data.frame(poc=rep(unique(vals$poc),each=ndays),
           date=rep(dates,times=npocs),hour=rep(0,ndays*npocs),duration=rep("X",ndays*npocs),
           conc=apply(matrix(vals$conc,nrow=24),2,avg24,sub=0,lvl=35),
-          flag=as.character(tapply(vals$flag,list(vals$poc,vals$date),function(x) 
-            paste(unique(x[which(substr(x,1,1) %in% c("I","R"))]),collapse=","))),
-          concur=" ")
-        temp <- rbind(subset(temp,duration != 1),add)
+          flag=apply(matrix(vals$flag,nrow=24),2,function(x)
+            paste(unique(x[which(substr(x,1,1) %in% c("I","R"))]),collapse=",")),
+          concur=apply(matrix(vals$concur,nrow=24),2,function(x)
+            ifelse(any(x == "Y",na.rm=TRUE),"Y"," ")))
       }
+      temp <- rbind(frm,fem)
       ## Create a dataset with a full daily record
       npocs <- length(unique(temp$poc)); ndays <- length(dates);
       all.days <- data.frame(poc=rep(unique(temp$poc),each=ndays),date=rep(dates,times=npocs))
       data <- merge(all.days,temp,all.x=TRUE,all.y=FALSE)
+      if (nrow(data) > (npocs*ndays)) {
+        data <- data[order(data$poc,data$date,data$conc,decreasing=TRUE),]
+        data <- data[!duplicated(data[,c("poc","date")]),]
+        data <- data[order(data$poc,data$date),]
+      }
       ## Remove concurred exceptional events
       ee <- which(substr(data$flag,1,1) == "R" & data$concur == "Y")
       if (length(ee) > 0) { data$conc[ee] <- -99 }
@@ -453,7 +492,7 @@ shinyServer(function(input,output,session) {
       sample_date %in% as.character(dv.dates()))$sample_date))
   })
   
-  ## Calculate PM2.5 annual design value (1997, 2012 NAAQS)
+  ## Calculate PM2.5 annual design value (1997, 2012, 2023 NAAQS)
   pm25.annual.dv <- reactive({
     if (is.null(sample.dates())) { return() }
     if (is.null(site.data())) { return() }
@@ -611,7 +650,7 @@ shinyServer(function(input,output,session) {
       }
       if (input$poll.select == "PM2.5") {
         if (is.null(site.data())) { return() }
-        temp <- site.data()
+        temp <- subset(site.data(),concur != "Y")
       }
       data <- subset(temp,!is.na(conc),c("date","conc","flag"))
       data$date <- as.character(data$date)

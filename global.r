@@ -1,9 +1,9 @@
 ## Set options, load required packages
-setwd("C:/Users/bwells01/Documents/EE_DVcalc/")
+setwd("C:/Your/Local/Directory/")
 require(RAQSAPI,quietly=TRUE,warn.conflicts=FALSE)
 require(shiny,quietly=TRUE,warn.conflicts=FALSE)
 require(xlsx,quietly=TRUE,warn.conflicts=FALSE)
-aqs_credentials(username="wells.benjamin@epa.gov",key="aquafox12")
+aqs_credentials(username="Your.Email@epa.gov",key="Your_AQS_API_key")
 options(stringsAsFactors=FALSE)
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
   ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 4,1,2)
@@ -36,8 +36,5 @@ avg24 <- function(x,sub,lvl) {
   }
 }
 
-## Load monitor metadata, method codes, o3 seasons
-load("data/monitors.Rdata")
-load("data/o3methods.Rdata")
-load("data/o3seasons.Rdata")
-load("data/pmschedules.Rdata")
+## Load monitor metadata, method codes, o3 seasons, pm2.5 sampling schedules
+load("data/aqsdata.Rdata")
