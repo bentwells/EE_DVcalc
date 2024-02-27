@@ -1,12 +1,22 @@
 ## Retrieve AQS data not available in API for Exceptional Event Design Value Tool
 source("R/get_monitors.r")
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
-  ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 4,1,2)
+  ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 1,1,2)
 o3.methods <- get.methods(par=44201)
-o3.monitors <- get.monitors(par=44201,yr1=curr.year-4,yr2=curr.year)
+o3.monitors <- get.monitors(par=44201,yr1=curr.year-4,yr2=curr.year,all=TRUE)
 o3.seasons <- get.seasons(yr1=curr.year-4,yr2=curr.year)
-pm.monitors <- get.monitors(par=88101,yr1=curr.year-4,yr2=curr.year)
+pm.monitors <- get.monitors(par=88101,yr1=curr.year-4,yr2=curr.year,all=TRUE)
 pm.schedules <- get.schedules(yr1=curr.year-4,yr2=curr.year)
+
+## Remove sites that are NAAQS excluded for the entire 5 years
+o3.monitors <- subset(o3.monitors,
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_begin_date)) >= as.Date(paste(curr.year-4,"01-01",sep="-")) &
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_end_date)) <= as.Date(paste(curr.year,"12-31",sep="-")) &
+  nonreg_concur != "Y")
+pm.monitors <- subset(pm.monitors,
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_begin_date)) >= as.Date(paste(curr.year-4,"01-01",sep="-")) &
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_end_date)) <= as.Date(paste(curr.year,"12-31",sep="-")) &
+  nonreg_concur != "Y")
 
 ## Retrieve ozone hourly data regional concurrence flags
 dt.begin <- paste(curr.year-4,"01-01 00:00:00",sep="-")

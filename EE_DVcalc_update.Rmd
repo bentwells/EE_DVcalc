@@ -1,6 +1,7 @@
 ---
 title: "EE_DVcalc_update"
 author: "Ben Wells"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -353,15 +354,25 @@ get.monitors <- function(par,yr1,yr2,all=FALSE) {
 }
 ```
 
-```{r label="update_aqs_data",echo=FALSE,message=FALSE,warning=FALSE}
+```{r label="retrieve_aqs_data",echo=FALSE,message=FALSE,warning=FALSE}
 ## Retrieve AQS data not available in API for Exceptional Event Design Value Tool
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
-ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 4,1,2)
+ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 1,1,2)
 o3.methods <- get.methods(par=44201)
-o3.monitors <- get.monitors(par=44201,yr1=curr.year-4,yr2=curr.year)
+o3.monitors <- get.monitors(par=44201,yr1=curr.year-4,yr2=curr.year,all=TRUE)
 o3.seasons <- get.seasons(yr1=curr.year-4,yr2=curr.year)
-pm.monitors <- get.monitors(par=88101,yr1=curr.year-4,yr2=curr.year)
+pm.monitors <- get.monitors(par=88101,yr1=curr.year-4,yr2=curr.year,all=TRUE)
 pm.schedules <- get.schedules(yr1=curr.year-4,yr2=curr.year)
+
+## Remove sites that are NAAQS excluded for the entire 5 years
+o3.monitors <- subset(o3.monitors,
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_begin_date)) >= as.Date(paste(curr.year-4,"01-01",sep="-")) &
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_end_date)) <= as.Date(paste(curr.year,"12-31",sep="-")) &
+  nonreg_concur != "Y")
+pm.monitors <- subset(pm.monitors,
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_begin_date)) >= as.Date(paste(curr.year-4,"01-01",sep="-")) &
+  as.Date(gsub(" ",paste(curr.year,"01-01",sep="-"),nonreg_end_date)) <= as.Date(paste(curr.year,"12-31",sep="-")) &
+  nonreg_concur != "Y")
 
 ## Retrieve ozone hourly data regional concurrence flags
 dt.begin <- paste(curr.year-4,"01-01 00:00:00",sep="-")
@@ -421,7 +432,7 @@ pm.concurrences.daily <- get.aqs.data(paste("SELECT DISTINCT
  ORDER BY 1,2",sep=""))
 ```
 
-```{r label="update_AQS_data",echo=FALSE,message=FALSE,warning=FALSE}
+```{r label="write_aqs_data",echo=FALSE,message=FALSE,warning=FALSE}
 aqs.list <- list(o3.methods=o3.methods,o3.monitors=o3.monitors,o3.seasons=o3.seasons,pm.monitors=pm.monitors,pm.schedules=pm.schedules,
   o3.concurrences=o3.concurrences,pm.concurrences.hourly=pm.concurrences.hourly,pm.concurrences.daily=pm.concurrences.daily)
 library(pins)

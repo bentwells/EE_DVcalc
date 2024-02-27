@@ -1,12 +1,12 @@
 ## Set options, load required packages
-setwd("C:/Your/Local/Directory/")
+options(stringsAsFactors=FALSE)
+require(openxlsx,quietly=TRUE,warn.conflicts=FALSE)
+require(pins,quietly=TRUE,warn.conflicts=FALSE)
 require(RAQSAPI,quietly=TRUE,warn.conflicts=FALSE)
 require(shiny,quietly=TRUE,warn.conflicts=FALSE)
-require(xlsx,quietly=TRUE,warn.conflicts=FALSE)
-aqs_credentials(username="Your.Email@epa.gov",key="Your_AQS_API_key")
-options(stringsAsFactors=FALSE)
+aqs_credentials(username=Sys.getenv("AQSAPI_user"),key=Sys.getenv("AQSAPI_key"))
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
-  ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 4,1,2)
+  ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 1,1,2)
 
 ## Custom functions called within the main function
 count <- function(x) { return(sum(!is.na(x))) }
@@ -36,5 +36,14 @@ avg24 <- function(x,sub,lvl) {
   }
 }
 
-## Load monitor metadata, method codes, o3 seasons, pm2.5 sampling schedules
-load("data/aqsdata.Rdata")
+## Load monitor metadata, EE concurrences, method codes, o3 seasons, pm2.5 sampling schedules
+board <- pins::board_connect()
+aqs.list <- pin_read(board,name=paste(Sys.getenv("app_owner"),"EE_DVcalc_AQSdata",sep="/"))
+o3.methods <- aqs.list$o3.methods
+o3.monitors <- aqs.list$o3.monitors
+o3.seasons <- aqs.list$o3.seasons
+pm.monitors <- aqs.list$pm.monitors
+pm.schedules <- aqs.list$pm.schedules
+o3.concurrences <- aqs.list$o3.concurrences
+pm.concurrences.hourly <- aqs.list$pm.concurrences.hourly
+pm.concurrences.daily <- aqs.list$pm.concurrences.daily

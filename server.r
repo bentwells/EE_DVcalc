@@ -33,9 +33,9 @@ shinyServer(function(input,output,session) {
       naaqs.selected <- "2015 8-hour NAAQS (70 ppb)"
     }
     if (input$poll.select == "PM2.5") {
-      naaqs.choices <- c("2023 Annual NAAQS (9 ug/m^3)","2012 Annual NAAQS (12 ug/m^3)",
+      naaqs.choices <- c("2024 Annual NAAQS (9 ug/m^3)","2012 Annual NAAQS (12 ug/m^3)",
         "2006 24-hour NAAQS (35 ug/m^3)","1997 Annual NAAQS (15 ug/m^3)")
-      naaqs.selected <- "2023 Annual NAAQS (9 ug/m^3)"
+      naaqs.selected <- "2024 Annual NAAQS (9 ug/m^3)"
     }
     selectInput(inputId="naaqs.select",label="Select a NAAQS:",
       choices=naaqs.choices,selected=naaqs.selected)
@@ -50,8 +50,7 @@ shinyServer(function(input,output,session) {
       level <- ifelse(naaqs == "2015",70,ifelse(naaqs == "2008",75,84))
     }
     if (input$poll.select == "PM2.5") {
-      level <- ifelse(naaqs == "2023",9,ifelse(naaqs == "2012",12,
-        ifelse(naaqs == "2006",35,15)))
+      level <- ifelse(naaqs == "2024",9,ifelse(naaqs == "2012",12,ifelse(naaqs == "2006",35,15)))
     }
     return(level)
   })
@@ -123,6 +122,7 @@ shinyServer(function(input,output,session) {
     updateSelectInput(session,inputId="state.select",selected=" ")
     updateSelectInput(session,inputId="region.select",selected="National")
     updateSelectInput(session,inputId="poll.select",selected="PM2.5")
+    updateSelectInput(session,inputId="naaqs.select",selected="2024 Annual NAAQS (9 ug/m^3)")
     vals$counter <- 0
     vals$last.clicked <- NULL
     vals$reset <- TRUE
@@ -200,7 +200,7 @@ shinyServer(function(input,output,session) {
       npocs <- length(unique(temp$poc)); ndays <- length(dates);
       all.hrs <- data.frame(poc=rep(unique(temp$poc),each=24*ndays),
         date=rep(dates,each=24,times=npocs),hour=rep(c(0:23),times=ndays*npocs))
-      data <- merge(all.hrs,temp,by=c("poc","date","hour"),all.x=TRUE,all.y=FALSE)
+      data <- merge(all.hrs,temp,by=c("poc","date","hour"),all.x=TRUE,all.y=FALSE,sort=FALSE)
       data <- data[order(data$poc,data$date,data$hour),]
       ## Remove missing days assumed less than the standard
       bg <- which(data$flag == "BG" & data$concur == "Y")
@@ -215,8 +215,8 @@ shinyServer(function(input,output,session) {
         if (length(drop) > 0) { data$conc[drop] <- NA }
       }
       ## Remove data with concurred NAAQS exclusions
-      if (any(monitor.info$concur == "Y")) {
-        nonreg <- which(monitor.info$concur)
+      if (any(monitor.info$nonreg_concur == "Y")) {
+        nonreg <- which(monitor.info$nonreg_concur == "Y")
         for (i in nonreg) {
           bd <- as.Date(monitor.info$nonreg_begin_date[i])
           ed <- as.Date(ifelse(monitor.info$nonreg_end_date[i] == " ",as.character(Sys.Date()),
@@ -309,7 +309,8 @@ shinyServer(function(input,output,session) {
         npocs <- length(unique(fem$poc)); ndays <- length(dates);
         all.hrs <- data.frame(poc=rep(unique(fem$poc),each=24*ndays),
           date=rep(dates,each=24,times=npocs),hour=rep(c(0:23),times=ndays*npocs))
-        vals <- merge(all.hrs,fem,all.x=TRUE,all.y=FALSE)
+        vals <- merge(all.hrs,fem,by=c("poc","date","hour"),all.x=TRUE,all.y=FALSE,sort=FALSE)
+        vals <- vals[order(vals$poc,vals$date,vals$hour),]
         fem <- data.frame(poc=rep(unique(vals$poc),each=ndays),
           date=rep(dates,times=npocs),hour=rep(0,ndays*npocs),duration=rep("X",ndays*npocs),
           conc=apply(matrix(vals$conc,nrow=24),2,avg24,sub=0,lvl=35),
@@ -332,8 +333,8 @@ shinyServer(function(input,output,session) {
       ee <- which(substr(data$flag,1,1) == "R" & data$concur == "Y")
       if (length(ee) > 0) { data$conc[ee] <- -99 }
       ## Remove data with concurred NAAQS exclusions
-      if (any(monitor.info$concur == "Y")) {
-        nonreg <- which(monitor.info$concur)
+      if (any(monitor.info$nonreg_concur == "Y")) {
+        nonreg <- which(monitor.info$nonreg_concur == "Y")
         for (i in nonreg) {
           bd <- as.Date(monitor.info$nonreg_begin_date[i])
           ed <- as.Date(ifelse(monitor.info$nonreg_end_date[i] == " ",as.character(Sys.Date()),
@@ -492,7 +493,7 @@ shinyServer(function(input,output,session) {
       sample_date %in% as.character(dv.dates()))$sample_date))
   })
   
-  ## Calculate PM2.5 annual design value (1997, 2012, 2023 NAAQS)
+  ## Calculate PM2.5 annual design value (1997, 2012, 2024 NAAQS)
   pm25.annual.dv <- reactive({
     if (is.null(sample.dates())) { return() }
     if (is.null(site.data())) { return() }
@@ -855,12 +856,19 @@ shinyServer(function(input,output,session) {
   ## Logic controlling download link in the lower left-hand corner
   ################################################################
   
+  ## Trigger to prevent download button from displaying before data retrieval finishes
+  output$showLink <- reactive({ 
+    if (vals$reset) { return(FALSE) }
+    return(ifelse(is.null(site.data()),FALSE,TRUE)) 
+  })
+  outputOptions(output,"showLink",suspendWhenHidden=FALSE)
+  
   ## Download Ozone DV data to Excel spreadsheet
   output$download.ozone <- downloadHandler(
     filename=function() { return(gsub("-","",paste("Ozone","_",aqs.site.id(),"_",
       input$year.select,"_",Sys.Date(),".xlsx",sep=""))) },
-    content=function(file) { 
-      wb <- loadWorkbook("xlsx/OzoneDVtemplate.xlsx"); wb.sheets <- getSheets(wb);
+    content=function(file) {
+      wb <- loadWorkbook("xlsx/OzoneDVtemplate.xlsx")
       site <- subset(get.sites(),site == aqs.site.id()); level <- naaqs.level();
       data <- site.mda8(); dv <- ozone.dv(); req.obs <- ifelse(level == 70,13,18);
       data$date <- as.character(data$date); data$dmax <- round(data$dmax,3);
@@ -868,55 +876,43 @@ shinyServer(function(input,output,session) {
       if (any(data$conc == -99,na.rm=TRUE)) { data$conc[which(data$conc == -99)] <- NA }
       daily <- split(data,substr(data$date,1,4))
       for (i in 1:3) {
-        cb.daily <- CellBlock(wb.sheets[[(i+1)]],startRow=2,startColumn=1,
-          noRows=nrow(daily[[i]]),noColumns=ncol(daily[[i]]),create=TRUE)
-        for (j in 1:ncol(daily[[i]])) {
-          CB.setColData(cb.daily,daily[[i]][,j],colIndex=j,showNA=FALSE,
-            colStyle=CellStyle(wb,alignment=Alignment(horizontal="ALIGN_CENTER")))
-        } 
+        writeData(wb,sheet=i+1,x=daily[[i]],startCol=1,startRow=2,
+          colNames=FALSE,rowNames=FALSE,na.string="")
       }
-      cb.site <- CellBlock(wb.sheets[[1]],startRow=2,startColumn=2,noRows=7,noColumns=1)
-      CB.setColData(cb.site,unlist(c(input$naaqs.select,site)),colIndex=1)
-      cb.pct <- CellBlock(wb.sheets[[1]],startRow=15,startColumn=3,noRows=3,noColumns=1)
-      CB.setColData(cb.pct,dv$ann$pct,colIndex=1,showNA=FALSE,
-        colStyle=CellStyle(wb,alignment=Alignment(horizontal="ALIGN_CENTER")))
+      writeData(wb,sheet=1,x=unlist(c(input$naaqs.select,site)),startCol=2,startRow=2,
+        colNames=FALSE,rowNames=FALSE,na.string="")
+      writeData(wb,sheet=1,x=dv$ann$pct,startCol=3,startRow=15,
+        colNames=FALSE,rowNames=FALSE,na.string="")
       saveWorkbook(wb,file)
-      forceFormulaRefresh(file)
-      gc()
-  })
+      invisible(NULL)
+    })
   
   ## Download PM2.5 DV data to Excel spreadsheet
   output$download.pm25 <- downloadHandler(
     filename=function() { return(gsub("-","",paste("PM25","_",aqs.site.id(),"_",
       input$year.select,"_",Sys.Date(),".xlsx",sep=""))) },
     content=function(file) {
-      wb <- loadWorkbook("xlsx/PM25DVtemplate.xlsx"); wb.sheets <- getSheets(wb);
+      wb <- loadWorkbook("xlsx/PM25DVtemplate.xlsx")
       site <- subset(get.sites(),site == aqs.site.id())
       data <- site.data(); ann.dv <- pm25.annual.dv(); daily.dv <- pm25.daily.dv();
       data$date <- as.character(data$date);
       data$quarter <- (as.numeric(substr(data$date,6,7))-1) %/% 3 + 1
       if (any(data$conc == -99,na.rm=TRUE)) { data$conc[which(data$conc == -99)] <- NA }
       daily <- split(data[,c("date","quarter","conc","flag")],substr(data$date,1,4))
-      center <- CellStyle(wb,alignment=Alignment(horizontal="ALIGN_CENTER"))
       for (i in 1:3) {
-        cb.daily <- CellBlock(wb.sheets[[(i+1)]],startRow=2,startColumn=1,
-          noRows=nrow(daily[[i]]),noColumns=ncol(daily[[i]]),create=TRUE)
-        for (j in 1:ncol(daily[[i]])) {
-          CB.setColData(cb.daily,daily[[i]][,j],colIndex=j,showNA=FALSE,colStyle=center)
-        } 
+        writeData(wb,sheet=i+1,x=daily[[i]],startCol=1,startRow=2,
+          colNames=FALSE,rowNames=FALSE,na.string="")
       }
-      cb.site <- CellBlock(wb.sheets[[1]],startRow=2,startColumn=2,noRows=8,noColumns=1)
-      CB.setColData(cb.site,unlist(site),colIndex=1)
-      cb.val1 <- CellBlock(wb.sheets[[1]],startRow=10,startColumn=3,noRows=1,noColumns=1)
-      CB.setColData(cb.val1,ifelse(ann.dv$dv$valid,"Yes","No"),colIndex=1,colStyle=center)
-      cb.val2 <- CellBlock(wb.sheets[[1]],startRow=12,startColumn=3,noRows=1,noColumns=1)
-      CB.setColData(cb.val2,ifelse(daily.dv$dv$valid,"Yes","No"),colIndex=1,colStyle=center)
-      cb.qtr <- CellBlock(wb.sheets[[1]],startRow=15,startColumn=10,noRows=12,noColumns=2)
-      CB.setColData(cb.qtr,ann.dv$qtr$obs,colIndex=1,colStyle=center)
-      CB.setColData(cb.qtr,ann.dv$qtr$pct,colIndex=2,colStyle=center)
+      writeData(wb,sheet=1,x=unlist(site),startCol=2,startRow=2,
+        colNames=FALSE,rowNames=FALSE,na.string="")
+      writeData(wb,sheet=1,x=ifelse(ann.dv$dv$valid,"Yes","No"),startCol=3,startRow=10,
+        colNames=FALSE,rowNames=FALSE,na.string="")
+      writeData(wb,sheet=1,x=ifelse(daily.dv$dv$valid,"Yes","No"),startCol=3,startRow=12,
+        colNames=FALSE,rowNames=FALSE,na.string="")
+      writeData(wb,sheet=1,x=ann.dv$qtr[,c("obs","pct")],startCol=10,startRow=15,
+        colNames=FALSE,rowNames=FALSE,na.string="")
       saveWorkbook(wb,file)
-      forceFormulaRefresh(file)
-      gc()
+      invisible(NULL)
   })
 })
 
