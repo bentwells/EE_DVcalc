@@ -7,7 +7,7 @@ require(shiny,quietly=TRUE,warn.conflicts=FALSE)
 aqs_credentials(username=Sys.getenv("AQSAPI_user"),key=Sys.getenv("AQSAPI_key"))
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
   ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 1,1,2)
-
+## testing
 ## Custom functions called within the main function
 count <- function(x) { return(sum(!is.na(x))) }
 max.na <- function(x) { return(ifelse(all(is.na(x)),NA,max(x,na.rm=TRUE))) }
