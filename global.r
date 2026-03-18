@@ -7,7 +7,7 @@ require(shiny,quietly=TRUE,warn.conflicts=FALSE)
 aqs_credentials(username=Sys.getenv("AQSAPI_user"),key=Sys.getenv("AQSAPI_key"))
 curr.year <- as.numeric(substr(as.character(Sys.Date()),1,4)) - 
   ifelse(as.numeric(substr(as.character(Sys.Date()),6,7)) > 1,1,2)
-## testing
+
 ## Custom functions called within the main function
 count <- function(x) { return(sum(!is.na(x))) }
 max.na <- function(x) { return(ifelse(all(is.na(x)),NA,max(x,na.rm=TRUE))) }
@@ -21,7 +21,7 @@ avg8 <- function(x,sub,lvl) {
   if (n >= 6) { return(mean(x,na.rm=TRUE)) }
   if (n > 0 & n < 6) {
     x.sub <- mean(replace(x,which(is.na(x)),sub))
-    return(ifelse(floor(x.sub) > lvl,x.sub,NA))
+    return(ifelse(floor(x.sub) > lvl,mean(x,na.rm=TRUE),NA))
   }
 }
 
@@ -29,10 +29,10 @@ avg8 <- function(x,sub,lvl) {
 avg24 <- function(x,sub,lvl) {
   n <- count(x)
   if (n == 0) { return(NA) }
-  if (n >= 18) { return(floor(10*mean(x,na.rm=TRUE))/10) }
+  if (n >= 18) { return(trunc(10*mean(x,na.rm=TRUE))/10) }
   if (n > 0 & n < 18) {
-    x.sub <- floor(10*mean(replace(x,which(is.na(x)),sub)))/10
-    return(ifelse(round(x.sub) > lvl,x.sub,NA))
+    x.sub <- trunc(10*mean(replace(x,which(is.na(x)),sub)))/10
+    return(ifelse(round(x.sub) > lvl,mean(x,na.rm=TRUE),NA))
   }
 }
 
